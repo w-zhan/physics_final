@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>物理實驗室 - 直線運動進階版</title>
+    <style>
+        :root {
+            --primary-color: #0891b2;
+            --secondary-color: #22d3ee;
+            --accent-purple: #8b5cf6;
+            --bg-color: #f1f5f9;
+            --panel-bg: #ffffff;
+            --border-radius: 12px;
+            --shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background-color: var(--bg-color); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+        header { background: var(--panel-bg); padding: 12px 25px; box-shadow: var(--shadow); flex-shrink: 0; }
+        h1 { font-size: 1.2rem; color: var(--primary-color); }
+
+        .main-container { display: flex; flex: 1; overflow: hidden; padding: 15px; gap: 15px; }
+
+        /* 左側控制面板 */
+        .control-panel {
+            background: var(--panel-bg); border-radius: var(--border-radius); padding: 20px;
+            width: 320px; box-shadow: var(--shadow); display: flex; flex-direction: column;
+            gap: 15px; overflow-y: auto;
+        }
+        .control-group { border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; }
+        label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9rem; }
+        .value-display { font-size: 0.85rem; color: var(--primary-color); float: right; }
+        input[type="range"] { width: 100%; accent-color: var(--primary-color); cursor: pointer; }
+
+        /* 中間畫布區域 */
+        .visualization-area { flex: 1; display: flex; flex-direction: column; gap: 15px; }
+        .canvas-container {
+            background: #000; border-radius: var(--border-radius); box-shadow: var(--shadow);
+            flex: 1; position: relative; overflow: hidden;
+        }
+        canvas { width: 100%; height: 100%; display: block; }
+
+        /* 下方數據欄 */
+        .stats-panel {
+            background: var(--panel-bg); border-radius: var(--border-radius); padding: 15px;
+            box-shadow: var(--shadow); display: flex; justify-content: space-around; height: 100px;
+        }
+        .stat-item { text-align: center; }
+        .stat-value { font-size: 1.2rem; font-weight: bold; }
+        .stat-label { font-size: 0.75rem; color: #64748b; margin-top: 4px; }
+
+        /* 右側教學與小考 */
+        .education-section {
+            background: #fff; width: 380px; padding: 20px; border-radius: var(--border-radius);
+            box-shadow: var(--shadow); overflow-y: auto; display: flex; flex-direction: column; gap: 15px;
+        }
+        .edu-card { background: #f8fafc; border-left: 4px solid var(--primary-color); padding: 12px; border-radius: 6px; }
+        .edu-title { font-weight: bold; margin-bottom: 5px; font-size: 0.95rem; }
+        
+        button {
+            padding: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s;
+        }
+        .quiz-option { width: 100%; text-align: left; background: #fff; border: 1px solid #ddd; margin: 5px 0; font-size: 0.85rem;}
+        .quiz-option:hover { background: #f1f5f9; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>直線運動模擬實驗室</h1>
+    <p style="font-size: 0.8rem; color: #666;">Motion Along a Straight Line - Kinematics</p>
+</header>
+
+<div class="main-container">
+    <div class="control-panel">
+        <div class="control-group">
+            <label>初始位置 (x0) <span id="val-x0" class="value-display">0 m</span></label>
+            <input type="range" id="input-x0" min="0" max="10" step="1" value="0">
+        </div>
+        <div class="control-group">
+            <label>初速度 (v0) <span id="val-v0" class="value-display">2 m/s</span></label>
+            <input type="range" id="input-v0" min="-10" max="10" step="0.5" value="2">
+        </div>
+        <div class="control-group">
+            <label>加速度 (a) <span id="val-a" class="value-display">1 m/s²</span></label>
+            <input type="range" id="input-a" min="-5" max="5" step="0.1" value="1">
+        </div>
+        <button id="btn-toggle" style="background: #10b981; color: white;" onclick="toggleSim()">啟動模擬</button>
+        <button style="background: #ef4444; color: white;" onclick="resetSim()">重置</button>
+    </div>
+
+    <div class="visualization-area">
+        <div class="canvas-container">
+            <canvas id="simCanvas"></canvas>
+        </div>
+        <div class="stats-panel">
+            <div class="stat-item">
+                <div class="stat-label">當前位置 (x)</div>
+                <div class="stat-value" id="disp-x">0.00 m</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">當前速度 (v)</div>
+                <div class="stat-value" id="disp-v">2.00 m/s</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">時間 (t)</div>
+                <div class="stat-value" id="disp-t">0.00 s</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="education-section">
+        <div class="edu-card">
+            <div class="edu-title">📖 定理內容</div>
+            <div class="edu-content" style="font-size: 0.85rem;">
+                描述物體位置隨時間變化的關係。當加速度為常數時，稱為等加速度直線運動。
+            </div>
+        </div>
+        <div class="edu-card">
+            <div class="edu-title">📐 公式表示</div>
+            <div class="edu-content" style="font-family: serif; font-size: 1rem;">
+                v = v₀ + at <br>
+                x = x₀ + v₀t + ½at²
+            </div>
+        </div>
+        
+        <div class="edu-card">
+            <div class="edu-title">🖼️ 圖像理解</div>
+            <div class="edu-content" style="font-size: 0.85rem;">
+                1. v-t 圖的斜率為加速度。<br>
+                2. v-t 圖與時間軸包圍的面積為位移。
+            </div>
+        </div>
+        
+        <div class="edu-card" style="background: #fffbeb;">
+            <div class="edu-title">📝 隨堂小考</div>
+            <p style="font-size: 0.85rem; margin-bottom: 5px;">若加速度為負，但初速為正，物體會？</p>
+            <button class="quiz-option" onclick="alert('正確！會先減速至零，再反向加速。')">先減速，可能反向</button>
+            <button class="quiz-option" onclick="alert('不對喔，負加速度代表向左拉。')">永遠向右加速</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    let state = {
+        x0: 0, v0: 2, a: 1,
+        curX: 0, curV: 2, t: 0,
+        running: false, lastTime: 0
+    };
+
+    function init() {
+        resize();
+        window.onresize = resize;
+        document.getElementById('input-x0').oninput = e => { 
+            state.x0 = state.curX = parseFloat(e.target.value); 
+            document.getElementById('val-x0').innerText = e.target.value + " m";
+            draw();
+        };
+        document.getElementById('input-v0').oninput = e => { 
+            state.v0 = state.curV = parseFloat(e.target.value); 
+            document.getElementById('val-v0').innerText = e.target.value + " m/s";
+        };
+        document.getElementById('input-a').oninput = e => { 
+            state.a = parseFloat(e.target.value); 
+            document.getElementById('val-a').innerText = e.target.value + " m/s²";
+        };
+        requestAnimationFrame(loop);
+    }
+
+    function toggleSim() {
+        state.running = !state.running;
+        document.getElementById('btn-toggle').innerText = state.running ? "暫停" : "啟動模擬";
+        state.lastTime = performance.now();
+    }
+
+    function resetSim() {
+        state.curX = state.x0; state.curV = state.v0; state.t = 0; state.running = false;
+        document.getElementById('btn-toggle').innerText = "啟動模擬";
+        draw();
+    }
+
+    function loop(now) {
+        if (state.running) {
+            let dt = (now - state.lastTime) / 1000;
+            state.lastTime = now;
+            state.t += dt;
+            state.curV += state.a * dt;
+            state.curX += state.curV * dt;
+            
+            document.getElementById('disp-x').innerText = state.curX.toFixed(2) + " m";
+            document.getElementById('disp-v').innerText = state.curV.toFixed(2) + " m/s";
+            document.getElementById('disp-t').innerText = state.t.toFixed(2) + " s";
+        } else {
+            state.lastTime = now;
+        }
+        draw();
+        requestAnimationFrame(loop);
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const groundY = canvas.height - 80;
+        const scale = 40; // 1m = 40px
+
+        // 畫地面網格
+        ctx.strokeStyle = "#333";
+        for(let i=0; i<canvas.width; i+=scale) {
+            ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
+        }
+        ctx.strokeStyle = "#888"; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(0, groundY); ctx.lineTo(canvas.width, groundY); ctx.stroke();
+
+        // 畫小車
+        const carX = state.curX * scale;
+        ctx.fillStyle = "#22d3ee";
+        ctx.fillRect(carX, groundY - 30, 50, 30);
+        
+        // 畫向量箭頭 (速度: 藍, 加速度: 綠)
+        drawArrow(carX + 25, groundY - 45, state.curV * 10, "#3b82f6", "v");
+        drawArrow(carX + 25, groundY - 15, state.a * 20, "#10b981", "a");
+    }
+
+    function drawArrow(x, y, len, color, label) {
+        if(Math.abs(len) < 2) return;
+        ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + len, y); ctx.stroke();
+        const head = len > 0 ? 5 : -5;
+        ctx.beginPath(); ctx.moveTo(x + len, y);
+        ctx.lineTo(x + len - head, y - 5); ctx.lineTo(x + len - head, y + 5); ctx.fill();
+        ctx.font = "12px Arial"; ctx.fillText(label, x + len + head, y);
+    }
+
+    function resize() {
+        canvas.width = canvas.parentElement.clientWidth;
+        canvas.height = canvas.parentElement.clientHeight;
+        draw();
+    }
+
+    init();
+</script>
+</body>
+</html>

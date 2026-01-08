@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>物理實驗室 - 位能與能量守恆</title>
+    <style>
+        :root {
+            --phet-blue: #004a99;
+            --control-bg: #e5f1d8;
+            --panel-bg: #f8fafc;
+            --sky-top: #87ceeb;
+            --sky-bottom: #e0f6ff;
+            --ke-green: #22c55e;
+            --pe-blue: #3b82f6;
+            --total-gold: #eab308;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif; }
+        body { background-color: #334155; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+        /* 頂部導覽 */
+        nav {
+            background: linear-gradient(to bottom, #1e293b, #0f172a);
+            height: 45px; display: flex; align-items: center; padding: 0 20px; border-bottom: 2px solid #000;
+        }
+        nav h1 { color: white; font-size: 18px; margin-right: 30px; }
+        nav span { color: #10b981; font-size: 14px; font-weight: bold; border-bottom: 2px solid #10b981; }
+
+        .main-container { display: flex; flex: 1; padding: 10px; gap: 10px; background: #cbd3e1; overflow: hidden; }
+
+        /* 左側模擬區 */
+        .simulation-container {
+            flex: 1; background: linear-gradient(to bottom, var(--sky-top), var(--sky-bottom));
+            border: 2px solid #555; border-radius: 8px; position: relative; display: flex; flex-direction: column;
+        }
+        canvas { width: 100%; flex: 1; display: block; }
+
+        /* 能量即時圖表 (Bar Chart) */
+        .energy-monitor {
+            position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.9);
+            padding: 15px; border-radius: 8px; border: 1px solid #888; box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
+        }
+        .bar-wrap { display: flex; align-items: flex-end; gap: 12px; height: 120px; }
+        .bar { width: 25px; transition: height 0.05s linear; border-radius: 2px 2px 0 0; }
+        .bar-label { font-size: 11px; font-weight: bold; text-align: center; margin-top: 5px; }
+
+        /* 下方控制區域 */
+        .bottom-controls {
+            height: 180px; background: var(--control-bg); border-top: 2px solid #888;
+            padding: 15px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .slider-row { width: 80%; display: flex; align-items: center; gap: 15px; margin: 5px 0; }
+        input[type="range"] { flex: 1; accent-color: var(--phet-blue); }
+
+        /* 右側教學面板 */
+        .edu-panel {
+            width: 420px; background: var(--panel-bg); border: 2px solid #888; border-radius: 8px;
+            padding: 20px; display: flex; flex-direction: column; gap: 15px; overflow-y: auto;
+        }
+        .edu-section { background: white; border-left: 5px solid var(--phet-blue); padding: 15px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .edu-title { font-weight: bold; color: var(--phet-blue); margin-bottom: 8px; font-size: 16px; border-bottom: 1px solid #eee; }
+        .edu-content { font-size: 14px; line-height: 1.6; color: #334155; }
+        
+        /* 小考 */
+        .quiz-option { 
+            display: block; width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ddd; 
+            background: #fff; border-radius: 6px; cursor: pointer; text-align: left; font-size: 13px;
+        }
+        .quiz-option:hover { background: #f1f5f9; }
+        .feedback { margin-top: 10px; padding: 10px; border-radius: 4px; display: none; font-size: 13px; font-weight: bold; }
+
+        .btn-reset { background: #ef4444; color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: auto; }
+    </style>
+</head>
+<body>
+
+<nav>
+    <h1>位能與能量守恆分析</h1>
+</nav>
+
+<div class="main-container">
+    <div class="simulation-container">
+        <div class="energy-monitor">
+            <div class="bar-wrap">
+                <div style="display:flex; flex-direction:column; align-items:center;">
+                    <div id="bar-ke" class="bar" style="background:var(--ke-green); height:0px;"></div>
+                    <div class="bar-label">動能</div>
+                </div>
+                <div style="display:flex; flex-direction:column; align-items:center;">
+                    <div id="bar-pe" class="bar" style="background:var(--pe-blue); height:0px;"></div>
+                    <div class="bar-label">位能</div>
+                </div>
+                <div style="display:flex; flex-direction:column; align-items:center;">
+                    <div id="bar-total" class="bar" style="background:var(--total-gold); height:0px;"></div>
+                    <div class="bar-label">總能</div>
+                </div>
+            </div>
+        </div>
+
+        <canvas id="simCanvas"></canvas>
+
+        <div class="bottom-controls">
+            <div style="font-weight:bold; font-size:18px; color:#1e293b; margin-bottom:10px;">實驗參數控制</div>
+            <div class="slider-row">
+                <label>重力 (g): <b id="val-g">9.8</b> m/s²</label>
+                <input type="range" id="slider-g" min="0" max="25" step="0.1" value="9.8">
+            </div>
+            <div class="slider-row">
+                <label>質量 (m): <b id="val-m">50</b> kg</label>
+                <input type="range" id="slider-m" min="5" max="100" step="5" value="50">
+            </div>
+            <button id="btn-pause" style="padding:5px 20px; cursor:pointer;">播放 / 暫停</button>
+        </div>
+    </div>
+
+    <div class="edu-panel">
+        <div class="edu-section">
+            <div class="edu-title">📖 定理解釋：能量守恆</div>
+            <div class="edu-content">
+                在沒有非保守力（如摩擦力）作功的情況下，物體的機械能（動能與位能之和）保持不變。
+                <ul>
+                    <li><b>重力位能 (PE)：</b> U = mgh</li>
+                    <li><b>動能 (KE)：</b> K = 1/2mv^2</li>
+                    <li><b>能量守恆：</b> PE_initial + KE_initial = PE_final + KE_final$</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="edu-section">
+            <div class="edu-title">🧪 探究任務</div>
+            <div class="edu-content">
+                1. <b>高度實驗：</b>手動拉動「位置滑桿」將木箱升到最高點，觀察此時動能條是否為 0？<br>
+                2. <b>自由落體：</b>點擊播放，觀察木箱下降時，位能如何轉化為動能。總能條有變動嗎？<br>
+                3. <b>星球模擬：</b>將重力調至 1.6 (月球)，觀察能量轉換的速度。
+            </div>
+        </div>
+
+        <div class="edu-section" style="background: #fffbeb; border-left-color: #f59e0b;">
+            <div class="edu-title">📝 隨堂小考</div>
+            <div class="edu-content">
+                <p><b>Q：若不計摩擦力，物體從高處自由落下，其「總機械能」會如何變化？</b></p>
+                <button class="quiz-option" onclick="checkQuiz(this, false, '不對喔，位能雖然變小，但會轉化成動能。')">逐漸變小</button>
+                <button class="quiz-option" onclick="checkQuiz(this, true, '正確！能量只是形式轉換，總量保持不變。')">保持不變</button>
+                <button class="quiz-option" onclick="checkQuiz(this, false, '不對，速度增加代表動能增加，但位能減少了。')">逐漸變大</button>
+                <div id="quiz-feedback" class="feedback"></div>
+            </div>
+        </div>
+
+        <div class="edu-section">
+            <div class="edu-title">位置控制 (高度)</div>
+            <div style="text-align:center; font-weight:bold; margin-bottom:5px;">目前高度: <span id="val-h">5.0</span> m</div>
+            <input type="range" id="slider-h" min="0" max="10" step="0.1" value="5" style="width:100%;">
+        </div>
+
+        <button class="btn-reset" onclick="resetAll()">重設全部實驗數據</button>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let st = { g: 9.8, m: 50, h: 5, v: 0, running: false };
+
+    function resetAll() {
+        st.v = 0; st.h = 5; st.running = false;
+        document.getElementById('slider-h').value = 5;
+        document.getElementById('quiz-feedback').style.display = 'none';
+        updateUI();
+    }
+
+    function checkQuiz(btn, isCorrect, msg) {
+        const feedback = document.getElementById('quiz-feedback');
+        feedback.innerText = msg;
+        feedback.style.display = 'block';
+        feedback.style.color = isCorrect ? '#065f46' : '#991b1b';
+        feedback.style.backgroundColor = isCorrect ? '#dcfce7' : '#fee2e2';
+    }
+
+    document.getElementById('slider-g').oninput = e => { st.g = parseFloat(e.target.value); updateUI(); };
+    document.getElementById('slider-m').oninput = e => { st.m = parseInt(e.target.value); updateUI(); };
+    document.getElementById('slider-h').oninput = e => { st.h = parseFloat(e.target.value); st.v = 0; st.running = false; updateUI(); };
+    document.getElementById('btn-pause').onclick = () => st.running = !st.running;
+
+    function updateUI() {
+        document.getElementById('val-g').innerText = st.g.toFixed(1);
+        document.getElementById('val-m').innerText = st.m;
+        document.getElementById('val-h').innerText = st.h.toFixed(1);
+    }
+
+    function physics() {
+        if (!st.running) return;
+        
+        let accel = -st.g;
+        st.v += accel * 0.016;
+        st.h += st.v * 0.016;
+
+        if (st.h <= 0) {
+            st.h = 0;
+            st.v = -st.v * 0.5; // 彈跳損耗
+            if (Math.abs(st.v) < 0.5) { st.v = 0; st.running = false; }
+        }
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const cw = canvas.width, ch = canvas.height, groundY = ch - 60;
+        const scale = (ch - 150) / 10;
+        const objY = groundY - (st.h * scale);
+        const objX = cw / 2;
+
+        // 能量條計算
+        let pe = st.m * st.g * st.h;
+        let ke = 0.5 * st.m * st.v * st.v;
+        let total = pe + ke;
+        let bScale = 0.01; // 顯示比例
+
+        document.getElementById('bar-pe').style.height = Math.min(pe * bScale, 120) + "px";
+        document.getElementById('bar-ke').style.height = Math.min(ke * bScale, 120) + "px";
+        document.getElementById('bar-total').style.height = Math.min(total * bScale, 120) + "px";
+
+        // 背景地層
+        ctx.fillStyle = "#8b5a2b"; ctx.fillRect(0, groundY, cw, 60);
+        
+        // 刻度
+        ctx.fillStyle = "#333";
+        for(let i=0; i<=10; i++) {
+            let ty = groundY - (i * scale);
+            ctx.fillRect(objX - 100, ty, 200, 1);
+            ctx.font = "10px Arial";
+            ctx.fillText(i + "m", objX - 120, ty + 4);
+        }
+
+        // 畫木箱
+        const bz = 40 + st.m/4;
+        ctx.fillStyle = "#d2b48c"; ctx.strokeStyle = "#5d4037"; ctx.lineWidth = 3;
+        ctx.fillRect(objX - bz/2, objY - bz, bz, bz);
+        ctx.strokeRect(objX - bz/2, objY - bz, bz, bz);
+
+        // 向量箭頭 (速度)
+        if (Math.abs(st.v) > 0.2) {
+            drawArrow(objX + bz, objY - bz/2, 0, -st.v * 5, "#22c55e", "速度 v");
+        }
+
+        physics();
+        updateUI();
+        requestAnimationFrame(draw);
+    }
+
+    function drawArrow(x, y, dx, dy, col, lab) {
+        ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + dx, y + dy); ctx.stroke();
+        ctx.fillText(lab, x + dx + 5, y + dy + 5);
+    }
+
+    window.onload = () => {
+        canvas.width = canvas.offsetWidth;
+        canvas.height = canvas.offsetHeight;
+        draw();
+    };
+</script>
+</body>
+</html>

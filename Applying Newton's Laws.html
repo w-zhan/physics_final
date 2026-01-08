@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>力學實驗室 - 摩擦力分析專題</title>
+    <style>
+        :root {
+            --phet-blue: #004a99;
+            --control-bg: #e5f1d8;
+            --panel-bg: #f8fafc;
+            --sky-top: #87ceeb;
+            --sky-bottom: #e0f6ff;
+            --accent-green: #10b981;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif; }
+        body { background-color: #334155; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+        /* 頂部導覽 - 只留摩擦力分析 */
+        nav {
+            background: linear-gradient(to bottom, #1e293b, #0f172a);
+            height: 45px; display: flex; align-items: center; padding: 0 20px; border-bottom: 2px solid #000;
+        }
+        nav h1 { color: white; font-size: 18px; margin-right: 30px; }
+        nav span { color: var(--accent-green); font-size: 14px; font-weight: bold; border-bottom: 2px solid var(--accent-green); cursor: pointer; }
+
+        .main-container { display: flex; flex: 1; padding: 10px; gap: 10px; background: #cbd3e1; overflow: hidden; }
+
+        /* 左側模擬區 */
+        .simulation-container {
+            flex: 1; background: linear-gradient(to bottom, var(--sky-top), var(--sky-bottom));
+            border: 2px solid #555; border-radius: 8px; position: relative; display: flex; flex-direction: column;
+        }
+        canvas { width: 100%; flex: 1; display: block; }
+
+        /* 下方施力控制 */
+        .bottom-controls {
+            height: 160px; background: var(--control-bg); border-top: 2px solid #888;
+            padding: 15px; display: flex; flex-direction: column; align-items: center;
+        }
+        .input-force { width: 80%; accent-color: #b35900; height: 25px; }
+
+        /* 右側教學與小考面板 */
+        .edu-panel {
+            width: 420px; background: var(--panel-bg); border: 2px solid #888; border-radius: 8px;
+            padding: 20px; display: flex; flex-direction: column; gap: 15px; overflow-y: auto;
+        }
+        .edu-section { background: white; border-left: 5px solid var(--phet-blue); padding: 15px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .edu-title { font-weight: bold; color: var(--phet-blue); margin-bottom: 8px; font-size: 16px; border-bottom: 1px solid #eee; }
+        .edu-content { font-size: 14px; line-height: 1.6; color: #334155; }
+        
+        /* 小考樣式 */
+        .quiz-option { 
+            display: block; width: 100%; padding: 12px; margin: 8px 0; 
+            border: 1px solid #ddd; background: #fff; border-radius: 6px; 
+            cursor: pointer; text-align: left; font-size: 14px; transition: 0.2s;
+        }
+        .quiz-option:hover { background: #f1f5f9; border-color: var(--phet-blue); }
+        .feedback { margin-top: 10px; padding: 12px; border-radius: 4px; display: none; font-size: 13px; font-weight: bold; line-height: 1.4; }
+
+        .btn-reset { background: #ef4444; color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: auto; transition: 0.3s; }
+        .btn-reset:hover { background: #dc2626; }
+    </style>
+</head>
+<body>
+
+<nav>
+    <h1>摩擦力分析</h1>
+   
+</nav>
+
+<div class="main-container">
+    <div class="simulation-container">
+        <canvas id="simCanvas"></canvas>
+        <div class="bottom-controls">
+            <div style="font-weight:bold; margin-bottom:10px;">施力 Applied Force: <span id="val-f" style="color:red; font-size:24px;">0</span> N</div>
+            <input type="range" id="slider-f" min="-500" max="500" value="0" class="input-force">
+            <div style="display:flex; gap:30px; margin-top:15px; font-size:14px;">
+                <label>摩擦係數 (μ): <input type="range" id="slider-mu" min="0" max="0.8" step="0.1" value="0.3"> <b id="val-mu">0.3</b></label>
+                <label>物體質量 (m): <input type="range" id="slider-m" min="10" max="200" step="10" value="50"> <b id="val-m">50</b> kg</label>
+            </div>
+        </div>
+    </div>
+
+    <div class="edu-panel">
+        <div class="edu-section">
+            <div class="edu-title">📖 定理解釋：摩擦力 (Friction)</div>
+            <div class="edu-content">
+                當兩物體表面接觸並有相對運動或趨勢時，會產生阻礙運動的力。
+                <ul>
+                    <li><b>靜摩擦力：</b>物體靜止時，隨推力增加而增加。</li>
+                    <li><b>最大靜摩擦力：</b>啟動瞬間所需的最小力 f_{s,max} = mu_s N)。</li>
+                    <li><b>動摩擦力：</b>滑動過程中的定值阻力 (f_k = mu_k N)。</li>
+                </ul>
+            </div>
+        </div>
+        
+
+[Image of static and kinetic friction graph]
+
+
+        <div class="edu-section">
+            <div class="edu-title">🧪 探究任務：臨界點實驗</div>
+            <div class="edu-content">
+                1. <b>測試啟動：</b>設定質量 100kg，摩擦係數 0.5。慢慢拉動施力滑桿，木箱在接近 500N 之前是否完全不動？<br>
+                2. <b>慣性觀察：</b>給予木箱初速後將推力設為 0，觀察木箱減速的過程，思考摩擦力如何對物體作負功。
+            </div>
+        </div>
+
+        <div class="edu-section" style="background: #f0fdf4; border-left-color: #22c55e;">
+            <div class="edu-title">📝 隨堂小考</div>
+            <div class="edu-content">
+                <p><b>Q：若木箱在地面滑行中，增加木箱的質量，摩擦力會如何變化？</b></p>
+                <button class="quiz-option" onclick="checkQuiz(this, true, '正確！質量增加會增加正向力 (N)，進而增加摩擦力。')">摩擦力變大</button>
+                <button class="quiz-option" onclick="checkQuiz(this, false, '不對喔，摩擦力與正向力有關，而質量決定了重力與正向力。')">摩擦力變小</button>
+                <button class="quiz-option" onclick="checkQuiz(this, false, '錯誤。摩擦力公式 f = μN 中，質量隱藏在 N 裡面。')">摩擦力保持不變</button>
+                <div id="quiz-feedback" class="feedback"></div>
+            </div>
+        </div>
+
+        <button class="btn-reset" onclick="resetAll()">重設實驗室數據</button>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let st = { f: 0, m: 50, mu: 0.3, x: 0, v: 0, fric: 0, running: true };
+
+    function resetAll() {
+        st.f = 0; st.v = 0; st.x = 0;
+        document.getElementById('slider-f').value = 0;
+        document.getElementById('quiz-feedback').style.display = 'none';
+        updateUI();
+    }
+
+    function checkQuiz(btn, isCorrect, msg) {
+        const feedback = document.getElementById('quiz-feedback');
+        feedback.innerText = msg;
+        feedback.style.display = 'block';
+        feedback.style.color = isCorrect ? '#065f46' : '#991b1b';
+        feedback.style.backgroundColor = isCorrect ? '#dcfce7' : '#fee2e2';
+    }
+
+    document.getElementById('slider-f').oninput = e => { st.f = parseInt(e.target.value); updateUI(); };
+    document.getElementById('slider-m').oninput = e => { st.m = parseInt(e.target.value); updateUI(); };
+    document.getElementById('slider-mu').oninput = e => { st.mu = parseFloat(e.target.value); updateUI(); };
+
+    function updateUI() {
+        document.getElementById('val-f').innerText = st.f;
+        document.getElementById('val-mu').innerText = st.mu;
+        document.getElementById('val-m').innerText = st.m;
+    }
+
+    function physics() {
+        const g = 9.8;
+        const frictionMax = st.m * g * st.mu;
+        
+        // 靜態與動態摩擦力邏輯
+        if (Math.abs(st.v) < 0.05) {
+            if (Math.abs(st.f) > frictionMax) {
+                // 克服最大靜摩擦
+                st.fric = -Math.sign(st.f) * (frictionMax * 0.8); // 進入動摩擦，通常略小於靜摩擦
+            } else {
+                // 靜摩擦平衡
+                st.fric = -st.f;
+                st.v = 0;
+            }
+        } else {
+            // 動摩擦力
+            st.fric = -Math.sign(st.v) * (frictionMax * 0.8);
+            // 速度快歸零時鎖定
+            if (Math.abs(st.v) < 0.1 && Math.abs(st.f) <= frictionMax) {
+                st.v = 0;
+            }
+        }
+
+        let accel = (st.f + st.fric) / st.m;
+        st.v += accel * 0.016;
+        st.x += st.v * 0.016;
+
+        // 邊界控制
+        if (st.x > 10.5) { st.x = 10.5; st.v = 0; }
+        if (st.x < -10.5) { st.x = -10.5; st.v = 0; }
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const cw = canvas.width, ch = canvas.height, groundY = ch - 60;
+        const boxX = cw/2 + (st.x * (cw/25)), boxSize = 50 + st.m/5;
+
+        // 繪製背景與地面
+        ctx.fillStyle = "#8b5a2b"; ctx.fillRect(0, groundY, cw, 60); // 地層
+        ctx.fillStyle = "#6d4c41"; ctx.fillRect(0, groundY, cw, 5);  // 地表線
+        
+        // 刻度尺
+        ctx.fillStyle = "#334155"; ctx.textAlign = "center";
+        ctx.font = "bold 12px Arial";
+        for(let i=-10; i<=10; i+=2) {
+            let tx = cw/2 + (i * (cw/25));
+            ctx.fillRect(tx, groundY, 2, 10);
+            ctx.fillText(i + "m", tx, groundY + 25);
+        }
+
+        // 繪製精緻小人
+        const side = Math.sign(st.f) || 1;
+        const px = boxX - (boxSize/2 + 20) * side;
+        const py = groundY - 55;
+        
+        ctx.strokeStyle = "#1e293b"; ctx.lineWidth = 4; ctx.lineCap = "round";
+        // 頭部
+        ctx.beginPath(); ctx.arc(px, py - 18, 9, 0, Math.PI*2); ctx.stroke();
+        // 身體
+        ctx.beginPath(); ctx.moveTo(px, py - 9); ctx.lineTo(px - 5*side, py + 18); ctx.stroke();
+        // 手部 (推的姿態)
+        ctx.beginPath(); ctx.moveTo(px, py); 
+        ctx.lineTo(boxX - (boxSize/2)*side, groundY - boxSize*0.6); ctx.stroke();
+        // 腿部
+        ctx.beginPath(); ctx.moveTo(px - 5*side, py + 18); ctx.lineTo(px - 18*side, groundY); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(px - 5*side, py + 18); ctx.lineTo(px + 4*side, groundY); ctx.stroke();
+
+        // 繪製木箱
+        ctx.fillStyle = "#d2b48c"; ctx.strokeStyle = "#5d4037"; ctx.lineWidth = 3;
+        ctx.fillRect(boxX - boxSize/2, groundY - boxSize, boxSize, boxSize);
+        ctx.strokeRect(boxX - boxSize/2, groundY - boxSize, boxSize, boxSize);
+        // 箱子對角線強化質感
+        ctx.beginPath(); ctx.moveTo(boxX-boxSize/2, groundY-boxSize); ctx.lineTo(boxX+boxSize/2, groundY); ctx.stroke();
+
+        // 繪製向量箭頭
+        if (Math.abs(st.f) > 1) {
+            drawArrow(boxX, groundY - boxSize - 30, st.f * 0.4, "#f43f5e", "施力 (Applied)");
+        }
+        if (Math.abs(st.fric) > 1) {
+            drawArrow(boxX, groundY - 10, st.fric * 0.4, "#3b82f6", "摩擦力 (Friction)");
+        }
+
+        physics();
+        requestAnimationFrame(draw);
+    }
+
+    function drawArrow(x, y, len, col, lab) {
+        if (Math.abs(len) < 5) return;
+        ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + len, y); ctx.stroke();
+        let head = len > 0 ? 8 : -8;
+        ctx.beginPath(); ctx.moveTo(x + len, y);
+        ctx.lineTo(x + len - head, y - 6);
+        ctx.lineTo(x + len - head, y + 6);
+        ctx.fill();
+        ctx.font = "bold 13px Arial";
+        ctx.fillText(lab, x + len/2, y - 12);
+    }
+
+    window.onload = () => {
+        canvas.width = canvas.offsetWidth;
+        canvas.height = canvas.offsetHeight;
+        updateUI();
+        draw();
+    };
+</script>
+</body>
+</html>

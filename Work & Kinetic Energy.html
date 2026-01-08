@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>物理實驗室 - 功與動能 (專業進階版)</title>
+    <style>
+        :root {
+            --primary-orange: #f59e0b;
+            --kinetic-green: #10b981;
+            --force-red: #ef4444;
+            --bg-dark: #0f172a;
+            --panel-white: #ffffff;
+            --border-radius: 12px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif; }
+        body { background-color: #f1f5f9; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+        header { background: var(--panel-white); padding: 12px 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); flex-shrink: 0; }
+        h1 { font-size: 1.3rem; color: var(--primary-orange); }
+
+        .main-container { display: flex; flex: 1; overflow: hidden; padding: 15px; gap: 15px; }
+
+        /* 左側控制面板 */
+        .control-panel {
+            background: var(--panel-white); border-radius: var(--border-radius); padding: 20px;
+            width: 320px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); display: flex;
+            flex-direction: column; gap: 18px; overflow-y: auto; flex-shrink: 0;
+        }
+        .control-group { border-bottom: 1px solid #f1f5f9; padding-bottom: 15px; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 0.9rem; color: #475569; }
+        .value-display { font-size: 0.85rem; color: var(--primary-orange); float: right; font-weight: bold; }
+        input[type="range"] { width: 100%; accent-color: var(--primary-orange); cursor: pointer; }
+
+        /* 中間專業畫布 */
+        .visualization-area { flex: 1; display: flex; flex-direction: column; gap: 15px; min-width: 0; }
+        .canvas-container {
+            background: var(--bg-dark); border-radius: var(--border-radius);
+            position: relative; overflow: hidden; flex: 1;
+        }
+        canvas { width: 100%; height: 100%; display: block; }
+
+        /* 數據看板 */
+        .stats-panel {
+            background: var(--panel-white); border-radius: var(--border-radius); padding: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05); display: flex;
+            justify-content: space-around; align-items: center; flex-shrink: 0; height: 90px;
+        }
+        .stat-item { text-align: center; }
+        .stat-value { font-size: 1.2rem; font-weight: bold; }
+        .label-work { color: var(--primary-orange); }
+        .label-ke { color: var(--kinetic-green); }
+
+        /* 右側教學區 */
+        .education-section {
+            background: #fff; width: 380px; padding: 20px; border-radius: var(--border-radius);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05); overflow-y: auto; flex-shrink: 0; display: flex;
+            flex-direction: column; gap: 15px;
+        }
+        .edu-card { background: #f8fafc; border-left: 4px solid var(--primary-orange); padding: 15px; border-radius: 6px; }
+        .edu-title { font-weight: bold; margin-bottom: 8px; color: #334155; }
+        .edu-content { font-size: 0.88rem; line-height: 1.6; color: #475569; }
+
+        .btn-action { background: var(-- kinetic-green); color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 10px;}
+        .quiz-option { display: block; width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #cbd5e1; background: white; border-radius: 6px; cursor: pointer; text-align: left; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>功與動能模擬實驗室 (Work & Kinetic Energy)</h1>
+    </header>
+
+    <div class="main-container">
+        <div class="control-panel">
+            <div class="control-group">
+                <label>物體質量 (m) <span id="val-mass" class="value-display">2.0 kg</span></label>
+                <input type="range" id="slider-mass" min="1" max="10" step="0.5" value="2.0">
+            </div>
+
+            <div class="control-group">
+                <label>施加推力 (F) <span id="val-force" class="value-display">10 N</span></label>
+                <input type="range" id="slider-force" min="0" max="50" step="1" value="10">
+            </div>
+
+            <div class="control-group">
+                <label>施力角度 (θ) <span id="val-theta" class="value-display">0°</span></label>
+                <input type="range" id="slider-theta" min="-90" max="90" step="5" value="0">
+            </div>
+
+            <button class="btn-action" style="background:var(--primary-orange)" onclick="toggleSim()" id="btn-toggle">啟動模擬</button>
+            <button class="btn-action" style="background:#ef4444" onclick="resetSim()">重置實驗</button>
+        </div>
+
+        <div class="visualization-area">
+            <div class="canvas-container">
+                <canvas id="simCanvas"></canvas>
+            </div>
+            
+            <div class="stats-panel">
+                <div class="stat-item">
+                    <div class="stat-label">施力做的功 (W)</div>
+                    <div class="stat-value label-work" id="disp-work">0.0 J</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">動能變化 (ΔK)</div>
+                    <div class="stat-value label-ke" id="disp-ke">0.0 J</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">當前速度 (v)</div>
+                    <div class="stat-value" id="disp-vel" style="color:#22d3ee">0.00 m/s</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="education-section">
+            <div class="edu-card">
+                <div class="edu-title">📖 定理內容</div>
+                <div class="edu-content">
+                    <strong>功能定理：</strong>合力對物體所做的總功，等於物體動能的變化量。<br>
+                    公式：W = ΔK = 1/2mv_f^2 - 1/2mv_i^2$
+                </div>
+            </div>
+
+            <div class="edu-card">
+                <div class="edu-title">🖼️ 圖像理解</div>
+                <div class="edu-content">
+                    1. <strong>向量分解：</strong> 只有與位移方向平行的力分量 (Fcosθ) 會對物體做功。<br>
+                    2. <strong>F-d 圖面積：</strong> 力對位移的圖形下方的面積即代表功。
+                    
+                </div>
+            </div>
+
+            <div class="edu-card">
+                <div class="edu-title">🧪 實驗任務</div>
+                <div class="edu-content">
+                    嘗試將角度 θ 設為 90。觀察即使施加很大的力，功與動能是否完全沒有增加？
+                </div>
+            </div>
+
+            <div class="edu-card" style="background: #fffbeb;">
+                <div class="edu-title">📝 隨堂小考</div>
+                <div class="edu-content">
+                    <p>當力的方向與運動方向相反時（θ=180），該力做的功為何？</p>
+                    <button class="quiz-option" onclick="alert('正確！這會消耗動能，使其速度減慢。')">負功</button>
+                    <button class="quiz-option" onclick="alert('不對喔，這代表力在阻礙運動。')">正功</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    let state = {
+        mass: 2, force: 10, theta: 0,
+        posX: 100, vel: 0, work: 0, running: false, lastTime: 0
+    };
+
+    function init() {
+        resize();
+        window.onresize = resize;
+        document.getElementById('slider-mass').oninput = e => {
+            state.mass = parseFloat(e.target.value);
+            document.getElementById('val-mass').innerText = e.target.value + " kg";
+        };
+        document.getElementById('slider-force').oninput = e => {
+            state.force = parseFloat(e.target.value);
+            document.getElementById('val-force').innerText = e.target.value + " N";
+        };
+        document.getElementById('slider-theta').oninput = e => {
+            state.theta = parseFloat(e.target.value);
+            document.getElementById('val-theta').innerText = e.target.value + "°";
+        };
+        requestAnimationFrame(loop);
+    }
+
+    function toggleSim() {
+        state.running = !state.running;
+        document.getElementById('btn-toggle').innerText = state.running ? "暫停模擬" : "啟動模擬";
+        state.lastTime = performance.now();
+    }
+
+    function resetSim() {
+        state.posX = 100; state.vel = 0; state.work = 0; state.running = false;
+        document.getElementById('btn-toggle').innerText = "啟動模擬";
+    }
+
+    function loop(now) {
+        if (state.running) {
+            let dt = (now - state.lastTime) / 1000;
+            state.lastTime = now;
+            
+            let rad = state.theta * Math.PI / 180;
+            let effectiveForce = state.force * Math.cos(rad);
+            let accel = effectiveForce / state.mass;
+            
+            let prevVel = state.vel;
+            state.vel += accel * dt;
+            let dx = (prevVel * dt) + (0.5 * accel * dt * dt);
+            state.posX += dx * 40; // 比例尺
+            
+            state.work += effectiveForce * dx;
+            
+            if (state.posX > canvas.width) state.posX = 0;
+            updateUI();
+        } else {
+            state.lastTime = now;
+        }
+        draw();
+        requestAnimationFrame(loop);
+    }
+
+    function updateUI() {
+        let ke = 0.5 * state.mass * state.vel * state.vel;
+        document.getElementById('disp-work').innerText = state.work.toFixed(1) + " J";
+        document.getElementById('disp-ke').innerText = ke.toFixed(1) + " J";
+        document.getElementById('disp-vel').innerText = Math.abs(state.vel).toFixed(2) + " m/s";
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const groundY = canvas.height - 80;
+
+        // 畫格線
+        ctx.strokeStyle = "#1e293b"; ctx.lineWidth = 1;
+        for(let i=0; i<canvas.width; i+=40) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); ctx.stroke(); }
+        
+        // 畫物體
+        const size = 40 + state.mass * 2;
+        ctx.fillStyle = "#f59e0b";
+        ctx.fillRect(state.posX, groundY - size, size, size);
+
+        // 畫力向量與角度 (核心視覺)
+        let rad = state.theta * Math.PI / 180;
+        let arrowLen = state.force * 3;
+        let cx = state.posX + size/2;
+        let cy = groundY - size/2;
+
+        ctx.strokeStyle = "#ef4444"; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + arrowLen * Math.cos(rad), cy - arrowLen * Math.sin(rad));
+        ctx.stroke();
+
+        // 標註有效分量
+        ctx.setLineDash([5, 5]); ctx.strokeStyle = "rgba(255,255,255,0.4)";
+        ctx.beginPath(); ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + arrowLen * Math.cos(rad), cy);
+        ctx.stroke(); ctx.setLineDash([]);
+    }
+
+    function resize() { canvas.width = canvas.parentElement.clientWidth; canvas.height = canvas.parentElement.clientHeight; }
+    init();
+</script>
+</body>
+</html>
